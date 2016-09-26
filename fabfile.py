@@ -14,9 +14,8 @@ def get_bool(value):
 
 def deploy(tmp_path, backend_url, backend_branch, ext, path, include,
            front_url, front_branch, remote_path, venv_path, program,
-           workers, worker_class, bind_host, bind_port, user_group,
-           local_user, local_password, app_config='default', nginx=False):
-    production = get_bool(production)
+           workers, worker_class, bind, user_group,
+           local_user, local_password, config_name='default', nginx=False):
     nginx = get_bool(nginx)
 
     with settings(warn_only=True):
@@ -24,12 +23,11 @@ def deploy(tmp_path, backend_url, backend_branch, ext, path, include,
     with settings(warn_only=True):
         local('mkdir -p {}'.format(tmp_path))
     handle_backend(tmp_path, backend_url, backend_branch, remote_path,
-                   user_group, venv_path, app_config=app_config)
+                   user_group, venv_path, config_name=config_name)
     if front_url != 'N/A' and front_branch != 'N/A':
         handle_front(tmp_path, front_url, front_branch, remote_path, user_group,
                      local_user, local_password)
     project = '{remote_path}/backend'.format(remote_path=remote_path)
-    bind = '{host}:{port}'.format(host=bind_host, port=bind_port)
     config_supervisor(program, venv_path, project, env.user, tmp_path,
                       ext, path, include, workers, worker_class, bind)
     if nginx:
@@ -51,7 +49,7 @@ stderr_logfile={project}/error.log
 
 
 def handle_backend(tmp_path, url, branch, remote_path, user_group, venv_path,
-                   app_config='default'):
+                   config_name='default'):
     """
     获取后端代码, 打包, 上传到服务器, 解压
     """
@@ -95,8 +93,8 @@ def handle_backend(tmp_path, url, branch, remote_path, user_group, venv_path,
             cmd = '{source} && {pip_install}'.format(
                 source=source, pip_install=pip_install)
             run(cmd)
-            if app_config != 'default':
-                run("sed -i 's/default/{}/g' runserver.py".format(app_config))
+            if config_name != 'default':
+                run("sed -i 's/default/{}/g' runserver.py".format(config_name))
 
 
 def handle_front(tmp_path, url, branch, remote_path, user_group,
