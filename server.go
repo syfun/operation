@@ -7,7 +7,9 @@ import (
 	"os/exec"
 
 	json "github.com/bitly/go-simplejson"
+	"github.com/kataras/go-template/html"
 	"github.com/kataras/iris"
+	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -23,7 +25,7 @@ func initDB(dbURL string) {
 }
 
 func getArgs(task *Task) []string {
-	fabPath := "/home/sunyu/gowork/src/github.com/syfun/operation/fabfile.py"
+	fabPath := viper.GetString("fabPath")
 	deploy := fmt.Sprintf("deploy:tmp_path=%s,backend_url=%s,backend_branch=%s,front_url=%s,front_branch=%s,remote_path=%s,venv_path=%s,program=%s,workers=%s,worker_class=%s,bind=%s,user_group=%s,ext=%s,path=%s,include=%s,local_user=%s,local_password=%s,config_name=%s,nginx=%v",
 		*task.LocalServer.Path, *task.Project.Backend.Address, *task.Project.Backend.Branch, *task.Project.Front.Address, *task.Project.Front.Branch, *task.RemoteServer.Path, *task.VenvPath, *task.Gunicorn.Program, *task.Gunicorn.Workers,
 		*task.Gunicorn.WorkerClass, *task.Gunicorn.Bind, *task.RemoteServer.Group, *task.Supervisor.Extension, *task.Supervisor.Path, *task.Supervisor.Include, *task.LocalServer.User, *task.LocalServer.Password, *task.ConfigName, *task.Nginx)
@@ -63,10 +65,22 @@ func RunCommand(c iris.WebsocketConnection, taskID string) *exec.Cmd {
 
 // CreateApp ...
 func CreateApp() *iris.Framework {
-	initDB("192.168.0.238")
+	viper.AddConfigPath("/home/sunyu/gowork/src/github.com/syfun/operation")
+	viper.AddConfigPath("/opt/operation")
+	viper.SetConfigName("config")
+	viper.SetConfigType("json")
+	if err := viper.ReadInConfig(); err != nil {
+		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+	}
+	initDB(viper.GetString("mongoURL"))
 	app := iris.New()
+	fmt.Println("##########")
+	fmt.Println("templatePath", viper.GetString("templatePath"))
+	fmt.Println("fabPath", viper.GetString("fabPath"))
+	app.UseTemplate(html.New()).Directory(viper.GetString("templatePath"), ".html")
+	app.Static("/static", viper.GetString("staticPath"), 1)
 	app.Get("/", func(c *iris.Context) {
-		c.WriteString("hello operation")
+		c.MustRender("index.html", nil)
 	})
 	app.Post("/api/v1/tasks", createTask)
 	app.Get("/api/v1/tasks", queryTask)
