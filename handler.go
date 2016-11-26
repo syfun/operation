@@ -1,9 +1,16 @@
 package operation
 
 import (
+	"fmt"
 	"log"
 
+	"encoding/json"
+
+	"errors"
+
 	"github.com/kataras/iris"
+	"github.com/spf13/viper"
+	"github.com/valyala/fasthttp"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -18,6 +25,7 @@ type Server struct {
 
 // Project ...
 type Project struct {
+	ID          *int        `json:"id"`
 	Name        *string     `json:"name,omitempty" bson:",omitempty"`
 	Backend     *Repository `json:"backend,omitempty" bson:",omitempty"`
 	Front       *Repository `json:"front,omitempty" bson:",omitempty"`
@@ -57,6 +65,7 @@ type Task struct {
 	LocalServer  *Server       `json:"localServer,omitempty" bson:"local_server,omitempty"`
 	Nginx        *string       `json:"nginx,omitempty" bson:",omitempty"`
 	ConfigName   *string       `json:"configName,omitempty" bson:"config_name,omitempty"`
+	Tags         []string      `json:"tags"`
 }
 
 func createTask(c *iris.Context) {
@@ -76,16 +85,73 @@ func createTask(c *iris.Context) {
 	}
 }
 
+// Tag ...
+type Tag struct {
+	Name string `json:"name"`
+}
+
+func getTags(projectName string) ([]Tag, error) {
+	privateToken := viper.GetString("privateToken")
+	url := fmt.Sprintf("http://dev.titangroupco.com/api/v3/projects?private_token=%v&search=%v", privateToken, projectName)
+	statusCode, body, err := fasthttp.Get(nil, url)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode != 200 {
+		return nil, errors.New(string(body))
+	}
+	var projects []Project
+	err = json.Unmarshal(body, &projects)
+	if err != nil {
+		return nil, err
+	}
+	if len(projects) < 1 {
+		return nil, fmt.Errorf("Cannot find %v project.", projectName)
+	}
+
+	url = fmt.Sprintf("http://dev.titangroupco.com/api/v3/projects/%v/repository/tags?private_token=%v", *projects[0].ID, privateToken)
+	statusCode, body, err = fasthttp.Get(nil, url)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode != 200 {
+		return nil, errors.New(string(body))
+	}
+	var tags []Tag
+	err = json.Unmarshal(body, &tags)
+	if err != nil {
+		return nil, err
+	}
+	return tags, nil
+}
+
 func queryTask(c *iris.Context) {
 	coll := db.C("tasks")
 	var tasks []Task
 	task := Task{}
 	iter := coll.Find(nil).Iter()
+	proTagsMap := make(map[string][]string, 5)
 	for iter.Next(&task) {
+		projectName := *task.Project.Name
+		proTags, ok := proTagsMap[projectName]
+		if !ok {
+			tags, err := getTags(projectName)
+			if err != nil {
+				log.Println(err)
+			}
+			proTags = make([]string, 0)
+			for _, tag := range tags {
+				proTags = append(proTags, tag.Name)
+			}
+		}
+		task.Tags = proTags
 		tasks = append(tasks, task)
 	}
+	if err := iter.Close(); err != nil {
+		log.Panic(err)
+	}
 	if err := c.JSON(200, tasks); err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 }
 

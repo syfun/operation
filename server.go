@@ -1,7 +1,6 @@
 package operation
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os/exec"
@@ -24,10 +23,16 @@ func initDB(dbURL string) {
 	db = session.DB("operation")
 }
 
-func getArgs(task *Task) []string {
+func getArgs(task *Task, frontTag, backTag string) []string {
 	fabPath := viper.GetString("fabPath")
+	if frontTag == "" {
+		frontTag = *task.Project.Front.Branch
+	}
+	if backTag == "" {
+		backTag = *task.Project.Backend.Branch
+	}
 	deploy := fmt.Sprintf("deploy:tmp_path=%s,backend_url=%s,backend_branch=%s,front_url=%s,front_branch=%s,remote_path=%s,venv_path=%s,program=%s,workers=%s,worker_class=%s,bind=%s,user_group=%s,ext=%s,path=%s,include=%s,local_user=%s,local_password=%s,config_name=%s,nginx=%v",
-		*task.LocalServer.Path, *task.Project.Backend.Address, *task.Project.Backend.Branch, *task.Project.Front.Address, *task.Project.Front.Branch, *task.RemoteServer.Path, *task.VenvPath, *task.Gunicorn.Program, *task.Gunicorn.Workers,
+		*task.LocalServer.Path, *task.Project.Backend.Address, backTag, *task.Project.Front.Address, frontTag, *task.RemoteServer.Path, *task.VenvPath, *task.Gunicorn.Program, *task.Gunicorn.Workers,
 		*task.Gunicorn.WorkerClass, *task.Gunicorn.Bind, *task.RemoteServer.Group, *task.Supervisor.Extension, *task.Supervisor.Path, *task.Supervisor.Include, *task.LocalServer.User, *task.LocalServer.Password, *task.ConfigName, *task.Nginx)
 	cmd := []string{
 		"-f", fabPath, "-u", *task.RemoteServer.User, "-p", *task.RemoteServer.Password, "-H", *task.RemoteServer.Host, deploy}
@@ -35,42 +40,44 @@ func getArgs(task *Task) []string {
 }
 
 // RunCommand ...
-func RunCommand(c iris.WebsocketConnection, taskID string) *exec.Cmd {
+func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *exec.Cmd {
 	task := &Task{}
 	coll := db.C("tasks")
 	err := coll.FindId(bson.ObjectIdHex(taskID)).One(task)
 	if err != nil {
 		log.Fatal(err)
 	}
-	cmdArgs := getArgs(task)
-	cmd := exec.Command("fab", cmdArgs...)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Fatal(err)
-	}
-	scanner := bufio.NewScanner(stdout)
-	go func() {
-		for scanner.Scan() {
-			c.EmitMessage(scanner.Bytes())
-		}
-	}()
-	if err := cmd.Start(); err != nil {
-		log.Fatal(err)
-	}
-	if err := cmd.Wait(); err != nil {
-		log.Fatal(err)
-	}
-	return cmd
+	cmdArgs := getArgs(task, frontTag, backTag)
+	fmt.Println(cmdArgs)
+	// cmd := exec.Command("fab", cmdArgs...)
+	// stdout, err := cmd.StdoutPipe()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// scanner := bufio.NewScanner(stdout)
+	// go func() {
+	// 	for scanner.Scan() {
+	// 		c.EmitMessage(scanner.Bytes())
+	// 	}
+	// }()
+	// if err := cmd.Start(); err != nil {
+	// 	log.Fatal(err)
+	// }
+	// if err := cmd.Wait(); err != nil {
+	// 	log.Fatal(err)
+	// }
+	// return cmd
+	return nil
 }
 
 // CreateApp ...
 func CreateApp() *iris.Framework {
-	viper.AddConfigPath("/home/sunyu/gowork/src/github.com/syfun/operation")
+	viper.AddConfigPath("/Users/sunyu/workspace/goprojects/src/github.com/syfun/operation")
 	viper.AddConfigPath("/opt/operation")
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
 	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+		log.Panic(fmt.Errorf("Fatal error config file: %s \n", err))
 	}
 	initDB(viper.GetString("mongoURL"))
 	app := iris.New()
@@ -96,17 +103,25 @@ func CreateApp() *iris.Framework {
 			js, _ := json.NewJson(message)
 			msgType, err := js.Get("type").String()
 			if err != nil {
-				log.Fatal(err)
+				log.Panic(err)
 			}
 			if msgType == "deploy" {
 				taskID, err := js.Get("taskID").String()
 				if err != nil {
-					log.Fatal(err)
+					log.Println(err)
 				}
-				cmd = RunCommand(c, taskID)
+				frontTag, err := js.Get("frontTag").String()
+				if err != nil {
+					log.Println(err)
+				}
+				backTag, err := js.Get("backTag").String()
+				if err != nil {
+					log.Println(err)
+				}
+				cmd = RunCommand(c, taskID, frontTag, backTag)
 			} else if msgType == "stop" {
 				if err := cmd.Process.Kill(); err != nil {
-					log.Fatal(err)
+					log.Panic(err)
 				}
 			}
 		})
