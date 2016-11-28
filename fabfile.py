@@ -26,7 +26,7 @@ def deploy(tmp_path, backend_url, backend_branch, ext, path, include,
                    user_group, venv_path, config_name=config_name)
     if front_url != 'N/A' and front_branch != 'N/A':
         handle_front(tmp_path, front_url, front_branch, remote_path, user_group,
-                     local_user, local_password)
+                     local_user, local_password, backend_branch)
     project = '{remote_path}/backend'.format(remote_path=remote_path)
     config_supervisor(program, venv_path, project, env.user, tmp_path,
                       ext, path, include, workers, worker_class, bind)
@@ -98,7 +98,7 @@ def handle_backend(tmp_path, url, branch, remote_path, user_group, venv_path,
 
 
 def handle_front(tmp_path, url, branch, remote_path, user_group,
-                 local_user, local_password):
+                 local_user, local_password, backend_branch):
     """
     获取前端代码，压缩打包, 上传到服务器, 解压
     """
@@ -109,56 +109,55 @@ def handle_front(tmp_path, url, branch, remote_path, user_group,
             res = local(clone_cmd)
         if res.failed:
             with lcd('front'):
-                local('git checkout .')
                 local('git pull origin {branch}'.format(branch=branch))
 
         # 修改常量
         with settings(warn_only=True):
-            with lcd('front/front/src/app/core'):
+            with lcd('front/src/app/core'):
                 cmd = ("sed -r "
+                       "-e \"s/.*baseUrl.*/\.constant('baseUrl', '\/api\/plm\/v1')/\" "
                        "-e \"s/.*fileServer.*/\.constant('fileServer', '\/api\/file\/v1')/\" "
-                       "-e \"s/frontVersion/{front_branch}/2\" "
-                       "-e \"s/backendVersion/{backend_branch}/2\" "
-                       "constants.js > constants.js.bak").format(front_branch=front_branch, backend_branch=backend_branch)
+                       "-e \"s/.*cmsUrl.*/\.constant('cmsUrl', '\/api\/cms\/v1')/\" "
+                       "-e \"s/.*frontVersion.*/\.constant('frontVersion', '{front_branch}')/\" "
+                       "-e \"s/.*backendVersion.*/\.constant('backendVersion', '{backend_branch}');/\" "
+                       "constants.js > constants.js.bak".format(front_branch=branch, backend_branch=backend_branch))
                 local(cmd)
                 local('mv constants.js.bak constants.js')
 
         # 压缩
         with lcd('front'):
-            with lcd('front'):
-                # 安装gulp和bower
-                with settings(warn_only=True):
-                    res = local('gulp --version')
-                if res.failed:
-                    with settings(host_string='127.0.0.1', user=local_user,
-                                  password=local_password):
-                        sudo('npm install -g gulp --registry='
-                             'https://registry.npm.taobao.org')
-                with settings(warn_only=True):
-                    res = local('bower --version')
-                if res.failed:
-                    with settings(host_string='127.0.0.1', user=local_user,
-                                  password=local_password):
-                        sudo('npm install -g bower --registry='
-                             'https://registry.npm.taobao.org')
+            # 安装gulp和bower
+            with settings(warn_only=True):
+                res = local('gulp --version')
+            if res.failed:
+                with settings(host_string='127.0.0.1', user=local_user,
+                                password=local_password):
+                    sudo('npm install -g gulp --registry='
+                            'https://registry.npm.taobao.org')
+            with settings(warn_only=True):
+                res = local('bower --version')
+            if res.failed:
+                with settings(host_string='127.0.0.1', user=local_user,
+                                password=local_password):
+                    sudo('npm install -g bower --registry='
+                            'https://registry.npm.taobao.org')
 
-                # 安装依赖包
-                local('npm install --registry=https://registry.npm.taobao.org')
-                with settings(warn_only=True):
-                    local('bower install')
-                local('npm run build')
+            # 安装依赖包
+            local('npm install --registry=https://registry.npm.taobao.org')
+            with settings(warn_only=True):
+                local('bower install')
+            local('npm run build')
 
-                with lcd('dist'):
-                    # 打包压缩文件
-                    local('zip -r static.zip *')
-                    # 上传
-                    put(local_path='static.zip',
-                        remote_path=remote_path,
-                        use_sudo=True)
+            with lcd('dist'):
+                # 打包压缩文件
+                local('zip -r static.zip *')
+                # 上传
+                put(local_path='static.zip',
+                    remote_path=remote_path,
+                    use_sudo=True)
     with cd(remote_path):
         sudo('unzip -o static.zip -d static')
         sudo('chown -R {} static'.format(user_group))
-
 
 def config_supervisor(
         program, venv_path, project, user, tmp_path,
