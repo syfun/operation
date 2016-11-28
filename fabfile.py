@@ -115,10 +115,10 @@ def handle_front(tmp_path, url, branch, remote_path, user_group,
         with settings(warn_only=True):
             with lcd('front/front/src/app/core'):
                 cmd = ("sed -r "
-                       "-e \"s/.*baseUrl.*/\.constant('baseUrl', '\/api\/plm\/v1')/\" "
                        "-e \"s/.*fileServer.*/\.constant('fileServer', '\/api\/file\/v1')/\" "
-                       "-e \"s/.*cmsUrl.*/\.constant('cmsUrl', '\/api\/cms\/v1')/\" "
-                       "constants.js > constants.js.bak")
+                       "-e \"s/frontVersion/{front_branch}/2\" "
+                       "-e \"s/backendVersion/{backend_branch}/2\" "
+                       "constants.js > constants.js.bak").format(front_branch=front_branch, backend_branch=backend_branch)
                 local(cmd)
                 local('mv constants.js.bak constants.js')
 

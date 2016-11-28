@@ -73,6 +73,7 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *e
 // CreateApp ...
 func CreateApp() *iris.Framework {
 	viper.AddConfigPath("/Users/sunyu/workspace/goprojects/src/github.com/syfun/operation")
+	viper.AddConfigPath("D:/Workspace/gowork/src/github.com/syfun/operation")
 	viper.AddConfigPath("/opt/operation")
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")

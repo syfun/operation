@@ -24,3 +24,7 @@ _testmain.go
 *.prof
 .idea
 *.pyc
+/main/debug
+/vendor/golang.org/
+/vendor/gopkg.in/
+/vendor/github.com/
