@@ -49,24 +49,24 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *e
 		log.Fatal(err)
 	}
 	cmdArgs := getArgs(task, frontTag, backTag)
-	 cmd := exec.Command("fab", cmdArgs...)
-	 stdout, err := cmd.StdoutPipe()
-	 if err != nil {
-	 	log.Fatal(err)
-	 }
-	 scanner := bufio.NewScanner(stdout)
-	 go func() {
-	 	for scanner.Scan() {
-	 		c.EmitMessage(scanner.Bytes())
-	 	}
-	 }()
-	 if err := cmd.Start(); err != nil {
-	 	log.Fatal(err)
-	 }
-	 if err := cmd.Wait(); err != nil {
-	 	log.Fatal(err)
-	 }
-	 return cmd
+	cmd := exec.Command("fab", cmdArgs...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	scanner := bufio.NewScanner(stdout)
+	go func() {
+		for scanner.Scan() {
+			c.EmitMessage(scanner.Bytes())
+		}
+	}()
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+	if err := cmd.Wait(); err != nil {
+		log.Fatal(err)
+	}
+	return cmd
 }
 
 // CreateApp ...
