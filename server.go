@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"bufio"
 )
 
 var db *mgo.Database
@@ -48,26 +49,24 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *e
 		log.Fatal(err)
 	}
 	cmdArgs := getArgs(task, frontTag, backTag)
-	fmt.Println(cmdArgs)
-	// cmd := exec.Command("fab", cmdArgs...)
-	// stdout, err := cmd.StdoutPipe()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// scanner := bufio.NewScanner(stdout)
-	// go func() {
-	// 	for scanner.Scan() {
-	// 		c.EmitMessage(scanner.Bytes())
-	// 	}
-	// }()
-	// if err := cmd.Start(); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// if err := cmd.Wait(); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// return cmd
-	return nil
+	 cmd := exec.Command("fab", cmdArgs...)
+	 stdout, err := cmd.StdoutPipe()
+	 if err != nil {
+	 	log.Fatal(err)
+	 }
+	 scanner := bufio.NewScanner(stdout)
+	 go func() {
+	 	for scanner.Scan() {
+	 		c.EmitMessage(scanner.Bytes())
+	 	}
+	 }()
+	 if err := cmd.Start(); err != nil {
+	 	log.Fatal(err)
+	 }
+	 if err := cmd.Wait(); err != nil {
+	 	log.Fatal(err)
+	 }
+	 return cmd
 }
 
 // CreateApp ...
