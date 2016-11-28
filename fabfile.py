@@ -109,6 +109,7 @@ def handle_front(tmp_path, url, branch, remote_path, user_group,
             res = local(clone_cmd)
         if res.failed:
             with lcd('front'):
+                local('git checkout .')
                 local('git pull origin {branch}'.format(branch=branch))
 
         # 修改常量
