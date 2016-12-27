@@ -105,24 +105,21 @@ def handle_front(tmp_path, url, branch, remote_path, user_group,
     with lcd(tmp_path):
         clone_cmd = 'git clone {url} -b {branch} front'.format(
             url=url, branch=branch)
-        with settings(warn_only=True):
-            res = local(clone_cmd)
-        if res.failed:
-            with lcd('front'):
-                local('git pull origin {branch}'.format(branch=branch))
+        res = local(clone_cmd)
 
         # 修改常量
         with settings(warn_only=True):
             with lcd('front/src/app/core'):
                 cmd = ("sed -r "
-                       "-e \"s/.*baseUrl.*/\.constant('baseUrl', '\/api\/plm\/v1')/\" "
-                       "-e \"s/.*fileServer.*/\.constant('fileServer', '\/api\/file\/v1')/\" "
-                       "-e \"s/.*cmsUrl.*/\.constant('cmsUrl', '\/api\/cms\/v1')/\" "
                        "-e \"s/.*frontVersion.*/\.constant('frontVersion', '{front_branch}')/\" "
                        "-e \"s/.*backendVersion.*/\.constant('backendVersion', '{backend_branch}');/\" "
                        "constants.js > constants.js.bak".format(front_branch=branch, backend_branch=backend_branch))
                 local(cmd)
                 local('mv constants.js.bak constants.js')
+
+        with settings(warn_only=True):
+            local('mv node_modules front/')
+            local('mv bower_components front/')
 
         # 压缩
         with lcd('front'):
@@ -155,6 +152,12 @@ def handle_front(tmp_path, url, branch, remote_path, user_group,
                 put(local_path='static.zip',
                     remote_path=remote_path,
                     use_sudo=True)
+
+        # 拷贝node_modules和bower_components
+        local('mv front/node_modules .')
+        local('mv front/bower_components .')
+        local('rm -rf front')
+
     with cd(remote_path):
         sudo('unzip -o static.zip -d static')
         sudo('chown -R {} static'.format(user_group))
@@ -219,3 +222,13 @@ def config_nginx(remote_path, host, port):
             run(cmd)
             sudo('mv default /etc/nginx/sites-available/')
             sudo('service nginx restart')
+
+
+def op():
+    local("git pull")
+    local("go install github.com/syfun/operation/main")
+    sudo("sudo supervisorctl stop op")
+    put(local_path="/home/ubuntu/gowork/bin/main", 
+        remote_path="/opt/operation")
+    run("chmod +x /opt/operation/main")
+    sudo("sudo supervisorctl start op")

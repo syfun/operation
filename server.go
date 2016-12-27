@@ -5,13 +5,14 @@ import (
 	"log"
 	"os/exec"
 
+	"bufio"
+
 	json "github.com/bitly/go-simplejson"
 	"github.com/kataras/go-template/html"
 	"github.com/kataras/iris"
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"bufio"
 )
 
 var db *mgo.Database
@@ -66,6 +67,7 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *e
 	if err := cmd.Wait(); err != nil {
 		log.Fatal(err)
 	}
+	c.EmitMessage([]byte("Deploy Over."))
 	return cmd
 }
 
