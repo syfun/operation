@@ -62,11 +62,12 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *e
 		}
 	}()
 	if err := cmd.Start(); err != nil {
-		log.Fatal(err)
+		log.Panic(fmt.Errorf("Exec error, %v", err))
 	}
 	if err := cmd.Wait(); err != nil {
-		log.Fatal(err)
+		log.Panic(fmt.Errorf("Finish error, %v", err))
 	}
+	log.Println("Deploy Over.")
 	c.EmitMessage([]byte("Deploy Over."))
 	return cmd
 }
