@@ -227,8 +227,9 @@ def config_nginx(remote_path, host, port):
 def op():
     local("git pull")
     local("go install github.com/syfun/operation/main")
-    sudo("sudo supervisorctl stop op")
-    put(local_path="/home/ubuntu/gowork/bin/main", 
-        remote_path="/opt/operation")
-    run("chmod +x /opt/operation/main")
-    sudo("sudo supervisorctl start op")
+    with settings(host_string="192.168.0.239", user="sunyu", password="Suijinimei2"):
+        sudo("sudo supervisorctl stop op")
+        put(local_path="/home/ubuntu/gowork/bin/main", 
+            remote_path="/opt/operation")
+        run("chmod +x /opt/operation/main")
+        sudo("sudo supervisorctl start op")
