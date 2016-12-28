@@ -241,6 +241,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/iris-contrib/middleware/logger",
+			"repository": "https://github.com/iris-contrib/middleware",
+			"vcs": "git",
+			"revision": "fd204bbe1fe40fb92800f5dfbb5d637776a30b46",
+			"branch": "master",
+			"path": "/logger",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/iris-contrib/middleware/recovery",
 			"repository": "https://github.com/iris-contrib/middleware",
 			"vcs": "git",

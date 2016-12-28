@@ -64,7 +64,7 @@ type Task struct {
 	Nginx        *string       `json:"nginx,omitempty" bson:",omitempty"`
 	ConfigName   *string       `json:"configName,omitempty" bson:"config_name,omitempty"`
 	Tags         []string      `json:"tags"`
-	Group        bson.ObjectId `json:"group_id"`
+	Group        bson.ObjectId `json:"group_id" bson:"group_id"`
 }
 
 // Group for tasks.
@@ -154,8 +154,18 @@ func queryTask(c *iris.Context) {
 	coll := session.DB("operation").C("tasks")
 	var tasks []Task
 	task := Task{}
-	iter := coll.Find(nil).Iter()
-	proTagsMap := make(map[string][]string, 5)
+
+	groupID := c.URLParam("group")
+
+	query := make(bson.M)
+	if groupID != "" {
+		query = bson.M{"group_id": bson.ObjectIdHex(groupID)}
+	} else {
+		query = nil
+	}
+
+	iter := coll.Find(query).Iter()
+	proTagsMap := make(map[string][]string, 0)
 	for iter.Next(&task) {
 		projectName := *task.Project.Name
 		proTags, ok := proTagsMap[projectName]

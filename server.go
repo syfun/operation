@@ -8,6 +8,7 @@ import (
 
 	json "github.com/bitly/go-simplejson"
 	"github.com/iris-contrib/middleware/cors"
+	"github.com/iris-contrib/middleware/logger"
 	"github.com/iris-contrib/middleware/recovery"
 	"github.com/kataras/go-template/html"
 	"github.com/kataras/iris"
@@ -79,7 +80,7 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
 func CreateApp() *iris.Framework {
 	var err error
 	viper.AddConfigPath("/Users/sunyu/workspace/goprojects/src/github.com/syfun/operation")
-	viper.AddConfigPath("/home/yungsung/workspace/gowork/src/github.com/syfun/operation")
+	viper.AddConfigPath("D:/Workspace/gowork/src/github.com/syfun/operation")
 	viper.AddConfigPath("/opt/operation")
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
@@ -90,7 +91,6 @@ func CreateApp() *iris.Framework {
 	if err != nil {
 		log.Fatal(err)
 	}
-	gSession.Close()
 
 	app := iris.New()
 	fmt.Println("##########")
@@ -102,19 +102,21 @@ func CreateApp() *iris.Framework {
 	app.Use(recovery.Handler)
 
 	crs := cors.New(cors.Options{
-		AllowedOrigins: []string{"*.titangroupco.com"},
+		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "PUT", "POST", "DELETE"},
 	})
 	app.Use(crs)
 
-
+	errorLogger := logger.New(logger.Config{Status: true, IP: true, Method: true, Path: true})
+	app.Use(errorLogger)
+	
 	app.Get("/", func(c *iris.Context) {
 		c.MustRender("index.html", nil)
 	})
 	app.Post("/api/v1/tasks", createTask)
 	app.Get("/api/v1/tasks", queryTask)
-	app.Put("/api/v1/tasks/:taskID", updateTask)
-	app.Delete("/api/v1/tasks/:taskID", deleteTask)
+	//app.Put("/api/v1/tasks/:taskID", updateTask)
+	//app.Delete("/api/v1/tasks/:taskID", deleteTask)
 	app.Get("/api/v1/groups", getGroups)
 
 	app.Config.Websocket.Endpoint = "/ws"
