@@ -1,13 +1,14 @@
 package operation
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os/exec"
 
-	"bufio"
-
 	json "github.com/bitly/go-simplejson"
+	"github.com/iris-contrib/middleware/cors"
+	"github.com/iris-contrib/middleware/recovery"
 	"github.com/kataras/go-template/html"
 	"github.com/kataras/iris"
 	"github.com/spf13/viper"
@@ -15,14 +16,14 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-var db *mgo.Database
+var gSession *mgo.Session
 
-func initDB(dbURL string) {
+func initDB(dbURL string) (*mgo.Session, error) {
 	session, err := mgo.Dial(dbURL)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Cannot connect to mongo, %v", err)
 	}
-	db = session.DB("operation")
+	return session, err
 }
 
 func getArgs(task *Task, frontTag, backTag string) []string {
@@ -42,9 +43,11 @@ func getArgs(task *Task, frontTag, backTag string) []string {
 }
 
 // RunCommand ...
-func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *exec.Cmd {
+func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
+	session := gSession.Clone()
+	defer session.Close()
 	task := &Task{}
-	coll := db.C("tasks")
+	coll := session.DB("operation").C("tasks")
 	err := coll.FindId(bson.ObjectIdHex(taskID)).One(task)
 	if err != nil {
 		log.Fatal(err)
@@ -55,6 +58,7 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *e
 	if err != nil {
 		log.Fatal(err)
 	}
+	cmd.Stderr = cmd.Stdout
 	scanner := bufio.NewScanner(stdout)
 	go func() {
 		for scanner.Scan() {
@@ -69,26 +73,41 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) *e
 	}
 	log.Println("Deploy Over.")
 	c.EmitMessage([]byte("Deploy Over."))
-	return cmd
 }
 
 // CreateApp ...
 func CreateApp() *iris.Framework {
+	var err error
 	viper.AddConfigPath("/Users/sunyu/workspace/goprojects/src/github.com/syfun/operation")
-	viper.AddConfigPath("D:/Workspace/gowork/src/github.com/syfun/operation")
+	viper.AddConfigPath("/home/yungsung/workspace/gowork/src/github.com/syfun/operation")
 	viper.AddConfigPath("/opt/operation")
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
-	if err := viper.ReadInConfig(); err != nil {
+	if err = viper.ReadInConfig(); err != nil {
 		log.Panic(fmt.Errorf("Fatal error config file: %s \n", err))
 	}
-	initDB(viper.GetString("mongoURL"))
+	gSession, err = initDB(viper.GetString("mongoURL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	gSession.Close()
+
 	app := iris.New()
 	fmt.Println("##########")
-	fmt.Println("templatePath", viper.GetString("templatePath"))
+	fmt.Println("templtePath", viper.GetString("templatePath"))
 	fmt.Println("fabPath", viper.GetString("fabPath"))
 	app.UseTemplate(html.New()).Directory(viper.GetString("templatePath"), ".html")
 	app.Static("/static", viper.GetString("staticPath"), 1)
+
+	app.Use(recovery.Handler)
+
+	crs := cors.New(cors.Options{
+		AllowedOrigins: []string{"*.titangroupco.com"},
+		AllowedMethods: []string{"GET", "PUT", "POST", "DELETE"},
+	})
+	app.Use(crs)
+
+
 	app.Get("/", func(c *iris.Context) {
 		c.MustRender("index.html", nil)
 	})
@@ -96,11 +115,11 @@ func CreateApp() *iris.Framework {
 	app.Get("/api/v1/tasks", queryTask)
 	app.Put("/api/v1/tasks/:taskID", updateTask)
 	app.Delete("/api/v1/tasks/:taskID", deleteTask)
+	app.Get("/api/v1/groups", getGroups)
 
 	app.Config.Websocket.Endpoint = "/ws"
 	app.Websocket.OnConnection(func(c iris.WebsocketConnection) {
 		fmt.Println("Connected.")
-		var cmd *exec.Cmd
 		c.OnMessage(func(message []byte) {
 			fmt.Println(string(message))
 			js, _ := json.NewJson(message)
@@ -121,11 +140,7 @@ func CreateApp() *iris.Framework {
 				if err != nil {
 					log.Println(err)
 				}
-				cmd = RunCommand(c, taskID, frontTag, backTag)
-			} else if msgType == "stop" {
-				if err := cmd.Process.Kill(); err != nil {
-					log.Panic(err)
-				}
+				RunCommand(c, taskID, frontTag, backTag)
 			}
 		})
 	})

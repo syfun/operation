@@ -30,8 +30,8 @@ def deploy(tmp_path, backend_url, backend_branch, ext, path, include,
     project = '{remote_path}/backend'.format(remote_path=remote_path)
     config_supervisor(program, venv_path, project, env.user, tmp_path,
                       ext, path, include, workers, worker_class, bind)
-    if nginx:
-        config_nginx(remote_path, bind_host, bind_port)
+    #if nginx:
+    #    config_nginx(remote_path, bind_host, bind_port)
 
 
 supervisor_conf = """[program:{program}]
@@ -225,11 +225,11 @@ def config_nginx(remote_path, host, port):
 
 
 def op():
-    local("git pull")
+    #local("git pull")
     local("go install github.com/syfun/operation/main")
     with settings(host_string="192.168.0.239", user="sunyu", password="Suijinimei2"):
         sudo("sudo supervisorctl stop op")
-        put(local_path="/home/ubuntu/gowork/bin/main", 
+        put(local_path="/home/yungsung/workspace/gowork/bin/main",
             remote_path="/opt/operation")
         run("chmod +x /opt/operation/main")
         sudo("sudo supervisorctl start op")

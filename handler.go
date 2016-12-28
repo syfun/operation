@@ -1,12 +1,10 @@
 package operation
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
-
-	"encoding/json"
-
-	"errors"
 
 	"github.com/kataras/iris"
 	"github.com/spf13/viper"
@@ -66,15 +64,28 @@ type Task struct {
 	Nginx        *string       `json:"nginx,omitempty" bson:",omitempty"`
 	ConfigName   *string       `json:"configName,omitempty" bson:"config_name,omitempty"`
 	Tags         []string      `json:"tags"`
+	Group        bson.ObjectId `json:"group_id"`
+}
+
+// Group for tasks.
+type Group struct {
+	ID         bson.ObjectId   `json:"id" bson:"_id,omitempty"`
+	Name       string          `json:"name"`
+	Tasks      []bson.ObjectId `json:"tasks"`
+	FrontTag   string          `json:"front_tag"`
+	BackendTag string          `json:"backend_tag"`
+	CMSTag     string          `json:"cms_tag"`
 }
 
 func createTask(c *iris.Context) {
+	session := gSession.Clone()
+	defer session.Close()
 	newTask := Task{}
 	err := c.ReadJSON(&newTask)
 	if err != nil {
 		log.Fatal(err)
 	}
-	coll := db.C("tasks")
+	coll := session.DB("operation").C("tasks")
 	newTask.ID = bson.NewObjectId()
 	err = coll.Insert(&newTask)
 	if err != nil {
@@ -88,6 +99,18 @@ func createTask(c *iris.Context) {
 // Tag ...
 type Tag struct {
 	Name string `json:"name"`
+}
+
+func getGroups(ctx *iris.Context)  {
+	session := gSession.Clone()
+	defer session.Close()
+	coll := session.DB("operation").C("groups")
+	groups := make([]Group, 3)
+	err := coll.Find(nil).All(&groups)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ctx.JSON(200, groups)
 }
 
 func getTags(projectName string) ([]Tag, error) {
@@ -126,7 +149,9 @@ func getTags(projectName string) ([]Tag, error) {
 }
 
 func queryTask(c *iris.Context) {
-	coll := db.C("tasks")
+	session := gSession.Clone()
+	defer session.Close()
+	coll := session.DB("operation").C("tasks")
 	var tasks []Task
 	task := Task{}
 	iter := coll.Find(nil).Iter()
@@ -156,7 +181,9 @@ func queryTask(c *iris.Context) {
 }
 
 func updateTask(c *iris.Context) {
-	coll := db.C("tasks")
+	session := gSession.Clone()
+	defer session.Close()
+	coll := session.DB("operation").C("tasks")
 	taskID := c.Param("taskID")
 	updateValue := Task{}
 	c.ReadJSON(&updateValue)
@@ -171,7 +198,9 @@ func updateTask(c *iris.Context) {
 }
 
 func deleteTask(c *iris.Context) {
-	coll := db.C("tasks")
+	session := gSession.Clone()
+	defer session.Close()
+	coll := session.DB("operation").C("tasks")
 	taskID := c.Param("taskID")
 	if err := coll.RemoveId(bson.ObjectIdHex(taskID)); err != nil {
 		log.Fatal(err)

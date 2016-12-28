@@ -232,6 +232,24 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/iris-contrib/middleware/cors",
+			"repository": "https://github.com/iris-contrib/middleware",
+			"vcs": "git",
+			"revision": "fd204bbe1fe40fb92800f5dfbb5d637776a30b46",
+			"branch": "master",
+			"path": "/cors",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/iris-contrib/middleware/recovery",
+			"repository": "https://github.com/iris-contrib/middleware",
+			"vcs": "git",
+			"revision": "fd204bbe1fe40fb92800f5dfbb5d637776a30b46",
+			"branch": "master",
+			"path": "/recovery",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/iris-contrib/websocket",
 			"repository": "https://github.com/iris-contrib/websocket",
 			"vcs": "git",
