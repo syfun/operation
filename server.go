@@ -3,6 +3,7 @@ package operation
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os/exec"
 
@@ -35,8 +36,12 @@ func getArgs(task *Task, frontTag, backTag string) []string {
 	if backTag == "" {
 		backTag = task.Project.Backend.Branch
 	}
+	tmp, err := ioutil.TempDir("/tmp/", "operation")
+	if err != nil {
+		log.Panic(err)
+	}
 	deploy := fmt.Sprintf("deploy:tmp_path=%s,backend_url=%s,backend_branch=%s,front_url=%s,front_branch=%s,remote_path=%s,venv_path=%s,program=%s,workers=%s,worker_class=%s,bind=%s,user_group=%s,ext=%s,path=%s,include=%s,local_user=%s,local_password=%s,config_name=%s,nginx=%v",
-		task.LocalServer.Path, task.Project.Backend.Address, backTag, task.Project.Front.Address, frontTag, task.RemoteServer.Path, task.VenvPath, task.Gunicorn.Program, task.Gunicorn.Workers,
+		tmp, task.Project.Backend.Address, backTag, task.Project.Front.Address, frontTag, task.RemoteServer.Path, task.VenvPath, task.Gunicorn.Program, task.Gunicorn.Workers,
 		task.Gunicorn.WorkerClass, task.Gunicorn.Bind, task.RemoteServer.Group, task.Supervisor.Extension, task.Supervisor.Path, task.Supervisor.Include, task.LocalServer.User, task.LocalServer.Password, task.ConfigName, task.Nginx)
 	cmd := []string{
 		"-f", fabPath, "-u", task.RemoteServer.User, "-p", task.RemoteServer.Password, "-H", task.RemoteServer.Host, deploy}
