@@ -14,17 +14,17 @@ import (
 
 // Server ...
 type Server struct {
-	Host     *string `json:"host,omitempty" bson:",omitempty"`
-	User     *string `json:"user,omitempty" bson:",omitempty"`
-	Group    *string `json:"group,omitempty" bson:",omitempty"`
-	Password *string `json:"password,omitempty" bson:",omitempty"`
-	Path     *string `json:"path,omitempty" bson:",omitempty"`
+	Host     string `json:"host,omitempty" bson:",omitempty"`
+	User     string `json:"user,omitempty" bson:",omitempty"`
+	Group    string `json:"group,omitempty" bson:",omitempty"`
+	Password string `json:"password,omitempty" bson:",omitempty"`
+	Path     string `json:"path,omitempty" bson:",omitempty"`
 }
 
 // Project ...
 type Project struct {
-	ID          *int        `json:"id"`
-	Name        *string     `json:"name,omitempty" bson:",omitempty"`
+	ID          int        `json:"id"`
+	Name        string     `json:"name,omitempty" bson:",omitempty"`
 	Backend     *Repository `json:"backend,omitempty" bson:",omitempty"`
 	Front       *Repository `json:"front,omitempty" bson:",omitempty"`
 	Description *string     `json:"description,omitempty" bson:",omitempty"`
@@ -32,37 +32,37 @@ type Project struct {
 
 // Repository ...
 type Repository struct {
-	Address *string `json:"address"`
-	Branch  *string `json:"branch"`
+	Address string `json:"address"`
+	Branch  string `json:"branch"`
 }
 
 // Supervisor ...
 type Supervisor struct {
-	Path      *string `json:"path,omitempty" bson:",omitempty"`
-	Include   *string `json:"include,omitempty" bson:",omitempty"`
-	Extension *string `json:"extension,omitempty" bson:",omitempty"`
+	Path      string `json:"path,omitempty" bson:",omitempty"`
+	Include   string `json:"include,omitempty" bson:",omitempty"`
+	Extension string `json:"extension,omitempty" bson:",omitempty"`
 }
 
 // Gunicorn ...
 type Gunicorn struct {
-	Workers     *string `json:"workers,omitempty" bson:",omitempty"`
-	WorkerClass *string `json:"workerClass,omitempty" bson:"worker_class,omitempty"`
-	Program     *string `json:"program,omitempty" bson:",omitempty"`
-	Bind        *string `json:"bind,omitempty" bson:",omitempty"`
+	Workers     string `json:"workers,omitempty" bson:",omitempty"`
+	WorkerClass string `json:"workerClass,omitempty" bson:"worker_class,omitempty"`
+	Program     string `json:"program,omitempty" bson:",omitempty"`
+	Bind        string `json:"bind,omitempty" bson:",omitempty"`
 }
 
 // Task ...
 type Task struct {
 	ID           bson.ObjectId `json:"id" bson:"_id,omitempty"`
-	Name         *string       `json:"name,omitempty" bson:",omitempty"`
+	Name         string       `json:"name,omitempty" bson:",omitempty"`
 	RemoteServer *Server       `json:"remoteServer,omitempty" bson:"remote_server,omitempty"`
 	Project      *Project      `json:"project,omitempty" bson:",omitempty"`
 	Supervisor   *Supervisor   `json:"supervisor,omitempty" bson:",omitempty"`
 	Gunicorn     *Gunicorn     `json:"gunicorn,omitempty" bson:",omitempty"`
-	VenvPath     *string       `json:"venvPath,omitempty" bson:"venv_path,omitempty"`
-	LocalServer  *Server       `json:"localServer,omitempty" bson:"local_server,omitempty"`
-	Nginx        *string       `json:"nginx,omitempty" bson:",omitempty"`
-	ConfigName   *string       `json:"configName,omitempty" bson:"config_name,omitempty"`
+	VenvPath     string       `json:"venvPath,omitempty" bson:"venv_path,omitempty"`
+	LocalServer  Server       `json:"localServer,omitempty" bson:"local_server,omitempty"`
+	Nginx        string       `json:"nginx,omitempty" bson:",omitempty"`
+	ConfigName   string       `json:"configName,omitempty" bson:"config_name,omitempty"`
 	Tags         []string      `json:"tags"`
 	Group        bson.ObjectId `json:"group_id" bson:"group_id"`
 }
@@ -132,7 +132,7 @@ func getTags(projectName string) ([]Tag, error) {
 		return nil, fmt.Errorf("Cannot find %v project.", projectName)
 	}
 
-	url = fmt.Sprintf("http://dev.titangroupco.com/api/v3/projects/%v/repository/tags?private_token=%v", *projects[0].ID, privateToken)
+	url = fmt.Sprintf("http://dev.titangroupco.com/api/v3/projects/%v/repository/tags?private_token=%v", projects[0].ID, privateToken)
 	statusCode, body, err = fasthttp.Get(nil, url)
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func queryTask(c *iris.Context) {
 	iter := coll.Find(query).Iter()
 	proTagsMap := make(map[string][]string, 0)
 	for iter.Next(&task) {
-		projectName := *task.Project.Name
+		projectName := task.Project.Name
 		proTags, ok := proTagsMap[projectName]
 		if !ok {
 			tags, err := getTags(projectName)

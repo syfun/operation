@@ -30,30 +30,53 @@ func initDB(dbURL string) (*mgo.Session, error) {
 func getArgs(task *Task, frontTag, backTag string) []string {
 	fabPath := viper.GetString("fabPath")
 	if frontTag == "" {
-		frontTag = *task.Project.Front.Branch
+		frontTag = task.Project.Front.Branch
 	}
 	if backTag == "" {
-		backTag = *task.Project.Backend.Branch
+		backTag = task.Project.Backend.Branch
 	}
 	deploy := fmt.Sprintf("deploy:tmp_path=%s,backend_url=%s,backend_branch=%s,front_url=%s,front_branch=%s,remote_path=%s,venv_path=%s,program=%s,workers=%s,worker_class=%s,bind=%s,user_group=%s,ext=%s,path=%s,include=%s,local_user=%s,local_password=%s,config_name=%s,nginx=%v",
-		*task.LocalServer.Path, *task.Project.Backend.Address, backTag, *task.Project.Front.Address, frontTag, *task.RemoteServer.Path, *task.VenvPath, *task.Gunicorn.Program, *task.Gunicorn.Workers,
-		*task.Gunicorn.WorkerClass, *task.Gunicorn.Bind, *task.RemoteServer.Group, *task.Supervisor.Extension, *task.Supervisor.Path, *task.Supervisor.Include, *task.LocalServer.User, *task.LocalServer.Password, *task.ConfigName, *task.Nginx)
+		task.LocalServer.Path, task.Project.Backend.Address, backTag, task.Project.Front.Address, frontTag, task.RemoteServer.Path, task.VenvPath, task.Gunicorn.Program, task.Gunicorn.Workers,
+		task.Gunicorn.WorkerClass, task.Gunicorn.Bind, task.RemoteServer.Group, task.Supervisor.Extension, task.Supervisor.Path, task.Supervisor.Include, task.LocalServer.User, task.LocalServer.Password, task.ConfigName, task.Nginx)
 	cmd := []string{
-		"-f", fabPath, "-u", *task.RemoteServer.User, "-p", *task.RemoteServer.Password, "-H", *task.RemoteServer.Host, deploy}
+		"-f", fabPath, "-u", task.RemoteServer.User, "-p", task.RemoteServer.Password, "-H", task.RemoteServer.Host, deploy}
 	return cmd
+}
+
+func updateTag(t *Task, frontTag, backTag string)  {
+	session := gSession.Clone()
+	defer session.Close()
+	var group Group
+	coll := session.DB("operation").C("groups")
+	err := coll.FindId(t.Group).One(&group)
+	if err != nil {
+		log.Fatal(err)
+	}
+	switch t.Project.Name {
+	case "kelvin":
+		if err := coll.UpdateId(group.ID, bson.M{"$set": bson.M{"front_tag": frontTag, "back_tag": backTag}}); err != nil {
+			log.Fatal(err)
+		}
+
+	case "cms_plm":
+		if err := coll.UpdateId(group.ID, bson.M{"$set": bson.M{"cms_tag": backTag}}); err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 // RunCommand ...
 func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
 	session := gSession.Clone()
 	defer session.Close()
-	task := &Task{}
+	var task Task
 	coll := session.DB("operation").C("tasks")
-	err := coll.FindId(bson.ObjectIdHex(taskID)).One(task)
+	err := coll.FindId(bson.ObjectIdHex(taskID)).One(&task)
 	if err != nil {
 		log.Fatal(err)
 	}
-	cmdArgs := getArgs(task, frontTag, backTag)
+
+	cmdArgs := getArgs(&task, frontTag, backTag)
 	cmd := exec.Command("fab", cmdArgs...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -73,6 +96,7 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
 		log.Panic(fmt.Errorf("Finish error, %v", err))
 	}
 	log.Println("Deploy Over.")
+	updateTag(&task, frontTag, backTag)
 	c.EmitMessage([]byte("Deploy Over."))
 }
 
