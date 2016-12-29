@@ -22,14 +22,23 @@ def deploy(tmp_path, backend_url, backend_branch, ext, path, include,
         sudo('mkdir -p {}'.format(remote_path))
     with settings(warn_only=True):
         local('mkdir -p {}'.format(tmp_path))
-    handle_backend(tmp_path, backend_url, backend_branch, remote_path,
-                   user_group, venv_path, config_name=config_name)
+    with settings(warn_only=True):
+        res = handle_backend(tmp_path, backend_url, backend_branch, remote_path,
+                             user_group, venv_path, config_name=config_name)
+    if res.failed:
+        local('rm -rf {}'.format(tmp_path))
+        return
     if front_url != 'N/A' and front_branch != 'N/A':
-        handle_front(tmp_path, front_url, front_branch, remote_path, user_group,
-                     local_user, local_password, backend_branch)
+        with settings(warn_only=True):
+            res = handle_front(tmp_path, front_url, front_branch, remote_path, user_group,
+                               local_user, local_password, backend_branch)
+            if res.failed:
+                local('rm -rf {}'.format(tmp_path))
+                return
     project = '{remote_path}/backend'.format(remote_path=remote_path)
     config_supervisor(program, venv_path, project, env.user, tmp_path,
                       ext, path, include, workers, worker_class, bind)
+    local('rm -rf {}'.format(tmp_path))        
     #if nginx:
     #    config_nginx(remote_path, bind_host, bind_port)
 
@@ -55,17 +64,9 @@ def handle_backend(tmp_path, url, branch, remote_path, user_group, venv_path,
     """
 
     with lcd(tmp_path):
-        # 清理
-        with settings(warn_only=True):
-            local('rm -r backend*')
-
         clone_cmd = 'git clone {url} -b {branch} backend'.format(
             url=url, branch=branch)
-        with settings(warn_only=True):
-            res = local(clone_cmd)
-        if res.failed:
-            with lcd('backend'):
-                local('git pull origin {branch}'.format(branch=branch))
+        local(clone_cmd)
         with lcd('backend'):
             local('rm -rf .git tools .gitignore')
 
@@ -77,8 +78,6 @@ def handle_backend(tmp_path, url, branch, remote_path, user_group, venv_path,
             remote_path=remote_path,
             use_sudo=True)
 
-        # 清理
-        local('rm -r backend*')
     with cd(remote_path):
         sudo('unzip -o backend.zip')
         sudo('chown -R {} backend'.format(user_group))
@@ -105,45 +104,23 @@ def handle_front(tmp_path, url, branch, remote_path, user_group,
     with lcd(tmp_path):
         clone_cmd = 'git clone {url} -b {branch} front'.format(
             url=url, branch=branch)
-        res = local(clone_cmd)
+        local(clone_cmd)
 
         # 修改常量
-        with settings(warn_only=True):
-            with lcd('front/src/app/core'):
-                cmd = ("sed -r "
-                       "-e \"s/.*frontVersion.*/\.constant('frontVersion', '{front_branch}')/\" "
-                       "-e \"s/.*backendVersion.*/\.constant('backendVersion', '{backend_branch}');/\" "
-                       "constants.js > constants.js.bak".format(front_branch=branch, backend_branch=backend_branch))
-                local(cmd)
-                local('mv constants.js.bak constants.js')
-
-        with settings(warn_only=True):
-            local('mv node_modules front/')
-            local('mv bower_components front/')
+        with lcd('front/src/app/core'):
+            cmd = ("sed -r "
+                    "-e \"s/.*frontVersion.*/\.constant('frontVersion', '{front_branch}')/\" "
+                    "-e \"s/.*backendVersion.*/\.constant('backendVersion', '{backend_branch}');/\" "
+                    "constants.js > constants.js.bak".format(front_branch=branch, backend_branch=backend_branch))
+            local(cmd)
+            local('mv constants.js.bak constants.js')
 
         # 压缩
         with lcd('front'):
-            # 安装gulp和bower
-            with settings(warn_only=True):
-                res = local('gulp --version')
-            if res.failed:
-                with settings(host_string='127.0.0.1', user=local_user,
-                                password=local_password):
-                    sudo('npm install -g gulp --registry='
-                            'https://registry.npm.taobao.org')
-            with settings(warn_only=True):
-                res = local('bower --version')
-            if res.failed:
-                with settings(host_string='127.0.0.1', user=local_user,
-                                password=local_password):
-                    sudo('npm install -g bower --registry='
-                            'https://registry.npm.taobao.org')
-
             # 安装依赖包
-            local('npm install --registry=https://registry.npm.taobao.org')
-            with settings(warn_only=True):
-                local('bower install')
-            local('npm run build')
+            local('yarn install')
+            local('cp -r /opt/operation/bower/kelvin/bower_components .')
+            local('yarn run build')
 
             with lcd('dist'):
                 # 打包压缩文件
@@ -152,11 +129,6 @@ def handle_front(tmp_path, url, branch, remote_path, user_group,
                 put(local_path='static.zip',
                     remote_path=remote_path,
                     use_sudo=True)
-
-        # 拷贝node_modules和bower_components
-        local('mv front/node_modules .')
-        local('mv front/bower_components .')
-        local('rm -rf front')
 
     with cd(remote_path):
         sudo('unzip -o static.zip -d static')
