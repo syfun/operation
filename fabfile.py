@@ -22,19 +22,14 @@ def deploy(tmp_path, backend_url, backend_branch, ext, path, include,
         sudo('mkdir -p {}'.format(remote_path))
     with settings(warn_only=True):
         local('mkdir -p {}'.format(tmp_path))
-    with settings(warn_only=True):
-        res = handle_backend(tmp_path, backend_url, backend_branch, remote_path,
-                             user_group, venv_path, config_name=config_name)
-    if res.failed:
-        local('rm -rf {}'.format(tmp_path))
-        return
+
+    handle_backend(tmp_path, backend_url, backend_branch, remote_path,
+                   user_group, venv_path, config_name=config_name)
+
     if front_url != 'N/A' and front_branch != 'N/A':
-        with settings(warn_only=True):
-            res = handle_front(tmp_path, front_url, front_branch, remote_path, user_group,
-                               local_user, local_password, backend_branch)
-            if res.failed:
-                local('rm -rf {}'.format(tmp_path))
-                return
+        res = handle_front(tmp_path, front_url, front_branch, remote_path, user_group,
+                           local_user, local_password, backend_branch)
+
     project = '{remote_path}/backend'.format(remote_path=remote_path)
     config_supervisor(program, venv_path, project, env.user, tmp_path,
                       ext, path, include, workers, worker_class, bind)
@@ -197,7 +192,7 @@ def config_nginx(remote_path, host, port):
 
 
 def op():
-    #local("git pull")
+    local("git pull")
     local("go install github.com/syfun/operation/main")
     with settings(host_string="192.168.0.239", user="sunyu", password="Suijinimei2"):
         sudo("sudo supervisorctl stop op")
