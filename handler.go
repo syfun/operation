@@ -72,9 +72,9 @@ type Group struct {
 	ID         bson.ObjectId   `json:"id" bson:"_id,omitempty"`
 	Name       string          `json:"name"`
 	Tasks      []bson.ObjectId `json:"tasks"`
-	FrontTag   string          `json:"front_tag"`
-	BackendTag string          `json:"backend_tag"`
-	CMSTag     string          `json:"cms_tag"`
+	FrontTag   string          `json:"front_tag" bson:"front_tag"`
+	BackendTag string          `json:"backend_tag" bson:"backend_tag"`
+	CMSTag     string          `json:"cms_tag" bson:"cms_tag"`
 }
 
 func createTask(c *iris.Context) {
