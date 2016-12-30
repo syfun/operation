@@ -71,21 +71,21 @@ func updateTag(t *Task, frontTag, backTag string) {
 }
 
 // RunCommand ...
-func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
+func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) error {
 	session := gSession.Clone()
 	defer session.Close()
 	var task Task
 	coll := session.DB("operation").C("tasks")
 	err := coll.FindId(bson.ObjectIdHex(taskID)).One(&task)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("Cannot get task from mongo, %v", err)
 	}
 
 	cmdArgs := getArgs(&task, frontTag, backTag)
 	cmd := exec.Command("fab", cmdArgs...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("Cannot set stdout pipe, %v", err)
 	}
 	cmd.Stderr = cmd.Stdout
 	scanner := bufio.NewScanner(stdout)
@@ -99,13 +99,14 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
 		ch <- 0
 	}()
 	if err := cmd.Start(); err != nil {
-		log.Panic("Exec error.\n", err)
+		return fmt.Errorf("Cannot start cmd, %v", err)
 	}
 	if err := cmd.Wait(); err != nil {
-		log.Panic("Finish error.\n", err)
+		return fmt.Errorf("Wait error, %v", err)
 	}
 	updateTag(&task, frontTag, backTag)
 	<-ch
+	return nil
 }
 
 // CreateApp ...
@@ -155,6 +156,7 @@ func CreateApp() *iris.Framework {
 	app.Websocket.OnConnection(func(c iris.WebsocketConnection) {
 		fmt.Println("Connected.")
 		c.OnMessage(func(message []byte) {
+			defer c.Disconnect()
 			fmt.Println(string(message))
 			js, _ := json.NewJson(message)
 			msgType, err := js.Get("type").String()
@@ -164,27 +166,26 @@ func CreateApp() *iris.Framework {
 			if msgType == "deploy" {
 				taskID, err := js.Get("taskID").String()
 				if err != nil {
-					log.Println(err)
+					log.Panic(err)
 				}
 				frontTag, err := js.Get("frontTag").String()
 				if err != nil {
-					log.Println(err)
+					log.Panic(err)
 				}
 				backTag, err := js.Get("backTag").String()
 				if err != nil {
-					log.Println(err)
+					log.Panic(err)
 				}
-				RunCommand(c, taskID, frontTag, backTag)
-				log.Println("Deploy Over.")
-				if err := c.EmitMessage([]byte("Deploy Over.")); err != nil {
-					log.Panic("Over error.\n", err)
+				if err := RunCommand(c, taskID, frontTag, backTag); err != nil {
+					log.Panic(err)
+				} else {
+					log.Println("Deploy Over.")
+					if err := c.EmitMessage([]byte("Deploy Over.")); err != nil {
+						log.Panic("Over error.\n", err)
+					}
 				}
 			}
 		})
-		if err := c.Disconnect(); err != nil {
-			log.Panic("Disconnect error.\n", err)
-		}
-
 	})
 	return app
 }
