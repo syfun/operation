@@ -92,20 +92,20 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
 	ch := make(chan int)
 	go func() {
 		for scanner.Scan() {
-			c.EmitMessage(scanner.Bytes())
+			if err := c.EmitMessage(scanner.Bytes()); err != nil {
+				log.Panic("Emit error.\n", err)
+			}
 		}
 		ch <- 0
 	}()
 	if err := cmd.Start(); err != nil {
-		log.Panic(fmt.Errorf("Exec error, %v", err))
+		log.Panic("Exec error.\n", err)
 	}
 	if err := cmd.Wait(); err != nil {
-		log.Panic(fmt.Errorf("Finish error, %v", err))
+		log.Panic("Finish error.\n", err)
 	}
-	log.Println("Deploy Over.")
 	updateTag(&task, frontTag, backTag)
 	<-ch
-	c.EmitMessage([]byte("Deploy Over."))
 }
 
 // CreateApp ...
@@ -175,8 +175,16 @@ func CreateApp() *iris.Framework {
 					log.Println(err)
 				}
 				RunCommand(c, taskID, frontTag, backTag)
+				log.Println("Deploy Over.")
+				if err := c.EmitMessage([]byte("Deploy Over.")); err != nil {
+					log.Panic("Over error.\n", err)
+				}
 			}
 		})
+		if err := c.Disconnect(); err != nil {
+			log.Panic("Disconnect error.\n", err)
+		}
+
 	})
 	return app
 }
