@@ -48,7 +48,7 @@ func getArgs(task *Task, frontTag, backTag string) []string {
 	return cmd
 }
 
-func updateTag(t *Task, frontTag, backTag string)  {
+func updateTag(t *Task, frontTag, backTag string) {
 	session := gSession.Clone()
 	defer session.Close()
 	var group Group
@@ -89,10 +89,12 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
 	}
 	cmd.Stderr = cmd.Stdout
 	scanner := bufio.NewScanner(stdout)
+	ch := make(chan int)
 	go func() {
 		for scanner.Scan() {
 			c.EmitMessage(scanner.Bytes())
 		}
+		ch <- 0
 	}()
 	if err := cmd.Start(); err != nil {
 		log.Panic(fmt.Errorf("Exec error, %v", err))
@@ -102,6 +104,7 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) {
 	}
 	log.Println("Deploy Over.")
 	updateTag(&task, frontTag, backTag)
+	<-ch
 	c.EmitMessage([]byte("Deploy Over."))
 }
 
@@ -138,7 +141,7 @@ func CreateApp() *iris.Framework {
 
 	errorLogger := logger.New(logger.Config{Status: true, IP: true, Method: true, Path: true})
 	app.Use(errorLogger)
-	
+
 	app.Get("/", func(c *iris.Context) {
 		c.MustRender("index.html", nil)
 	})

@@ -27,8 +27,8 @@ def deploy(tmp_path, backend_url, backend_branch, ext, path, include,
                    user_group, venv_path, config_name=config_name)
 
     if front_url != 'N/A' and front_branch != 'N/A':
-        res = handle_front(tmp_path, front_url, front_branch, remote_path, user_group,
-                           local_user, local_password, backend_branch)
+        handle_front(tmp_path, front_url, front_branch, remote_path, user_group,
+                     local_user, local_password, backend_branch)
 
     project = '{remote_path}/backend'.format(remote_path=remote_path)
     config_supervisor(program, venv_path, project, env.user, tmp_path,
