@@ -11,7 +11,6 @@ import (
 	"github.com/iris-contrib/middleware/cors"
 	"github.com/iris-contrib/middleware/logger"
 	"github.com/iris-contrib/middleware/recovery"
-	"github.com/kataras/go-template/html"
 	"github.com/kataras/iris"
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
@@ -129,8 +128,6 @@ func CreateApp() *iris.Framework {
 	fmt.Println("##########")
 	fmt.Println("templtePath", viper.GetString("templatePath"))
 	fmt.Println("fabPath", viper.GetString("fabPath"))
-	app.UseTemplate(html.New()).Directory(viper.GetString("templatePath"), ".html")
-	app.Static("/static", viper.GetString("staticPath"), 1)
 
 	app.Use(recovery.Handler)
 
