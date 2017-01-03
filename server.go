@@ -126,7 +126,6 @@ func CreateApp() *iris.Framework {
 
 	app := iris.New()
 	fmt.Println("##########")
-	fmt.Println("templtePath", viper.GetString("templatePath"))
 	fmt.Println("fabPath", viper.GetString("fabPath"))
 
 	app.Use(recovery.Handler)
@@ -140,9 +139,6 @@ func CreateApp() *iris.Framework {
 	errorLogger := logger.New(logger.Config{Status: true, IP: true, Method: true, Path: true})
 	app.Use(errorLogger)
 
-	app.Get("/", func(c *iris.Context) {
-		c.MustRender("index.html", nil)
-	})
 	app.Post("/api/v1/tasks", createTask)
 	app.Get("/api/v1/tasks", queryTask)
 	//app.Put("/api/v1/tasks/:taskID", updateTask)
