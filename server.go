@@ -8,13 +8,13 @@ import (
 	"os/exec"
 
 	json "github.com/bitly/go-simplejson"
-	"github.com/iris-contrib/middleware/cors"
 	"github.com/iris-contrib/middleware/logger"
 	"github.com/iris-contrib/middleware/recovery"
-	"github.com/kataras/iris"
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/kataras/iris"
+	"github.com/iris-contrib/middleware/cors"
 )
 
 var gSession *mgo.Session
