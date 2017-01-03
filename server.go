@@ -173,7 +173,6 @@ func CreateApp() *iris.Framework {
 					log.Panic(err)
 				} else {
 					log.Println("Deploy Over.")
-					log.Println(c)
 					if err := c.EmitMessage([]byte("Deploy Over.")); err != nil {
 						log.Panic("Over error.\n", err)
 					}
