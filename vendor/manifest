@@ -334,7 +334,7 @@
 			"importpath": "github.com/kataras/iris",
 			"repository": "https://github.com/kataras/iris",
 			"vcs": "git",
-			"revision": "290a9cad3dab65f3eb1bbab3ef9a252bb59da74c",
+			"revision": "8bbd9f8fc5489bd72336bba732a21df361707ce2",
 			"branch": "master",
 			"notests": true
 		},
