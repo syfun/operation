@@ -105,6 +105,9 @@ func RunCommand(c iris.WebsocketConnection, taskID, frontTag, backTag string) er
 	}
 	updateTag(&task, frontTag, backTag)
 	<-ch
+	if err := c.EmitMessage([]byte("Deploy Over.")); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -149,7 +152,7 @@ func CreateApp() *iris.Framework {
 	app.Websocket.OnConnection(func(c iris.WebsocketConnection) {
 		fmt.Println("Connected.")
 		c.OnMessage(func(message []byte) {
-			defer c.Disconnect()
+			// defer c.Disconnect()
 			fmt.Println(string(message))
 			js, _ := json.NewJson(message)
 			msgType, err := js.Get("type").String()
@@ -173,9 +176,6 @@ func CreateApp() *iris.Framework {
 					log.Panic(err)
 				} else {
 					log.Println("Deploy Over.")
-					if err := c.EmitMessage([]byte("Deploy Over.")); err != nil {
-						log.Panic("Over error.\n", err)
-					}
 				}
 			}
 		})
